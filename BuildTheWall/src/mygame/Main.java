@@ -15,6 +15,8 @@ import com.jme3.math.ColorRGBA;
 import static com.jme3.math.FastMath.nextRandomInt;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector3f;
+import com.jme3.post.FilterPostProcessor;
+import com.jme3.post.filters.CartoonEdgeFilter;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
@@ -41,17 +43,26 @@ public class Main extends SimpleApplication {
     initKeys();       // load custom key mappings
     initMark();       // a red sphere to mark the hit
  
+    FilterPostProcessor fpp = new FilterPostProcessor(assetManager);
+    CartoonEdgeFilter borda = new CartoonEdgeFilter();
+    borda.setEdgeColor(ColorRGBA.Red);
+    fpp.addFilter(borda);
+
+    viewPort.addProcessor(fpp);
 
     /** create four colored boxes and a floor to shoot at: */
     shootables = new Node("Shootables");
     rootNode.attachChild(shootables);
-//    shootables.attachChild(makeCube("a Dragon", -2f, 0f, 1f));
-//    shootables.attachChild(makeCube("a tin can", 1f, -2f, 0f));
-//    shootables.attachChild(makeCube("the Sheriff", 0f, 1f, -2f));
-//    shootables.attachChild(makeCube("the Deputy", 1f, 0f, -4f));
-    shootables.attachChild(makeFloor());
+    shootables.attachChild(makeFloor(0,-3.5f,-10));
+    shootables.attachChild(makeFloor(0,-3.5f,10));
     shootables.attachChild(makeWall());
   }
+  
+  @Override
+    public void simpleUpdate(float tpf) {
+      nodeWall.move(0,0,tpf*2);
+    }
+
 
   /** Declaring the "Shoot" action and mapping to its triggers. */
   private void initKeys() {
@@ -98,24 +109,14 @@ public class Main extends SimpleApplication {
     }
   };
 
-  /** A cube object for target practice */
-//  protected Geometry makeCube(String name, float x, float y, float z) {
-//    Box box = new Box(1, 1, 1);
-//    Geometry cube = new Geometry(name, box);
-//    cube.setLocalTranslation(x, y, z);
-//    Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-//    mat1.setColor("Color", ColorRGBA.randomColor());
-//    cube.setMaterial(mat1);
-//    return cube;
-//  }
-
   /** A floor to show that the "shot" can go through several objects. */
-  protected Geometry makeFloor() {
-    Box box = new Box(15, .2f, 15);
+  protected Geometry makeFloor(float x, float y, float z) {
+    Box box = new Box(4, .2f, 10);
     Geometry floor = new Geometry("the Floor", box);
-    floor.setLocalTranslation(0, -4, -5);
+    floor.setLocalTranslation(x, y, z);
     Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-    mat1.setColor("Color", ColorRGBA.Gray);
+    Texture floorTexture = assetManager.loadTexture("Textures/floor1.jpg"); 
+    mat1.setTexture("ColorMap", floorTexture); 
     floor.setMaterial(mat1);
     return floor;
   }
@@ -158,7 +159,7 @@ public class Main extends SimpleApplication {
    public Geometry makeCube(Node wall,float x, float y, float z){
      /** An unshaded textured cube. 
     *  Uses texture from jme3-test-data library! */ 
-    Box boxMesh = new Box(1f,1f,1f); 
+    Box boxMesh = new Box(0.48f,0.48f,0.48f); 
     Geometry boxGeo = new Geometry("A Textured Box", boxMesh); 
     Material boxMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md"); 
     boxGeo.setLocalTranslation(x, y, z);
@@ -175,12 +176,12 @@ public class Main extends SimpleApplication {
       int blockSkip = nextRandomInt(0,2);
       int i = 0 ,j = 0;
       for(i = 0; i < 4; i++){
-          for(j = 0; j < 4; j++){
+          for(j = -2; j < 2; j++){
               if(blockSkip != 2){
                 blockSkip = nextRandomInt(0,2);
               }
               else{
-                makeCube(nodeWall,i-1.5f,j, -20);
+                makeCube(nodeWall,i-1.5f,j,-20);
                 blockSkip = nextRandomInt(0,2);
               }
               System.out.println(blockSkip);
