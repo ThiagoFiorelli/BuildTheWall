@@ -11,12 +11,14 @@ import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import static com.jme3.math.FastMath.nextRandomInt;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector3f;
 import com.jme3.post.FilterPostProcessor;
 import com.jme3.post.filters.CartoonEdgeFilter;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
@@ -35,6 +37,7 @@ public class Main extends SimpleApplication {
   
   private Node shootables;
   private Node nodeWall;
+  private Node nodeTransparentWall;
   private Geometry mark;
 
   @Override
@@ -56,11 +59,14 @@ public class Main extends SimpleApplication {
     shootables.attachChild(makeFloor(0,-3.5f,-10));
     shootables.attachChild(makeFloor(0,-3.5f,10));
     shootables.attachChild(makeWall());
+    shootables.attachChild(makeTransparentWall());
   }
   
   @Override
     public void simpleUpdate(float tpf) {
       nodeWall.move(0,0,tpf*2);
+      
+      System.out.println(nodeWall.getLocalTranslation());
     }
 
 
@@ -172,7 +178,7 @@ public class Main extends SimpleApplication {
   }
   
   public Node makeWall(){
-      nodeWall = new Node("nodeWall");
+      nodeWall = new Node("nodeTransparentWall");
       int blockSkip = nextRandomInt(0,2);
       int i = 0 ,j = 0;
       for(i = 0; i < 4; i++){
@@ -190,5 +196,32 @@ public class Main extends SimpleApplication {
       return nodeWall;
   }
   
+  public Geometry makeTransparentCube(Node wall,float x, float y, float z){
+      /** A translucent/transparent texture, similar to a window frame. */
+    Box cube2Mesh = new Box( 0.48f,0.48f,0.48f);
+    Geometry cube2Geo = new Geometry("window frame", cube2Mesh);
+    Material cube2Mat = new Material(assetManager,
+    "Common/MatDefs/Misc/Unshaded.j3md");
+    cube2Geo.setLocalTranslation(x, y, z);
+    cube2Mat.setTexture("ColorMap",
+        assetManager.loadTexture("Textures/red.png"));
+    cube2Mat.getAdditionalRenderState().setBlendMode(BlendMode.AlphaAdditive);  // !
+    cube2Geo.setQueueBucket(Bucket.Transparent);   
+    cube2Geo.setMaterial(cube2Mat);
+    wall.attachChild(cube2Geo);
+    rootNode.attachChild(wall);
+    return cube2Geo;
+  }
+  
+  public Node makeTransparentWall(){
+      nodeTransparentWall = new Node("nodeWall");
+      int i = 0 ,j = 0;
+      for(i = 0; i < 4; i++){
+          for(j = -2; j < 2; j++){
+                makeTransparentCube(nodeTransparentWall,i-1.5f,j, 4f);
+           }
+        }
+      return nodeTransparentWall;
+  }
 }
 
