@@ -56,17 +56,16 @@ public class Main extends SimpleApplication {
     /** create four colored boxes and a floor to shoot at: */
     shootables = new Node("Shootables");
     rootNode.attachChild(shootables);
-    shootables.attachChild(makeFloor(0,-3.5f,-10));
-    shootables.attachChild(makeFloor(0,-3.5f,10));
-    shootables.attachChild(makeWall());
+    rootNode.attachChild(makeFloor(0,-3.5f,-10));
+    rootNode.attachChild(makeFloor(0,-3.5f,10));
+    makeWall();
     shootables.attachChild(makeTransparentWall());
   }
   
   @Override
     public void simpleUpdate(float tpf) {
       nodeWall.move(0,0,tpf*2);
-      
-      System.out.println(nodeWall.getLocalTranslation());
+
     }
 
 
@@ -97,6 +96,7 @@ public class Main extends SimpleApplication {
           float dist = results.getCollision(i).getDistance();
           Vector3f pt = results.getCollision(i).getContactPoint();
           String hit = results.getCollision(i).getGeometry().getName();
+          Spatial cubo = nodeTransparentWall.getChild(results.getCollision(i).getGeometry().getName());
           System.out.println("* Collision #" + i);
           System.out.println("  You shot " + hit + " at " + pt + ", " + dist + " wu away.");
         }
@@ -148,19 +148,6 @@ public class Main extends SimpleApplication {
       settings.getHeight() / 2 + ch.getLineHeight()/2, 0);
     guiNode.attachChild(ch);
   }
-
-  protected Spatial makeCharacter() {
-    // load a character from jme3test-test-data
-    Spatial golem = assetManager.loadModel("Models/Oto/Oto.mesh.xml");
-    golem.scale(0.5f);
-    golem.setLocalTranslation(-1.0f, -1.5f, -0.6f);
-
-    // We must add a light to make the model visible
-    DirectionalLight sun = new DirectionalLight();
-    sun.setDirection(new Vector3f(-0.1f, -0.7f, -1.0f));
-    golem.addLight(sun);
-    return golem;
-  }
   
    public Geometry makeCube(Node wall,float x, float y, float z){
      /** An unshaded textured cube. 
@@ -190,16 +177,19 @@ public class Main extends SimpleApplication {
                 makeCube(nodeWall,i-1.5f,j,-20);
                 blockSkip = nextRandomInt(0,2);
               }
-              System.out.println(blockSkip);
+
            }
         }
       return nodeWall;
   }
   
+  
+  
+  int cont=0;
   public Geometry makeTransparentCube(Node wall,float x, float y, float z){
       /** A translucent/transparent texture, similar to a window frame. */
     Box cube2Mesh = new Box( 0.48f,0.48f,0.48f);
-    Geometry cube2Geo = new Geometry("window frame", cube2Mesh);
+    Geometry cube2Geo = new Geometry("cube_"+cont++, cube2Mesh);
     Material cube2Mat = new Material(assetManager,
     "Common/MatDefs/Misc/Unshaded.j3md");
     cube2Geo.setLocalTranslation(x, y, z);
