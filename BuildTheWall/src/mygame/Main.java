@@ -1,6 +1,7 @@
 package mygame;
 
 import com.jme3.app.SimpleApplication;
+import com.jme3.bullet.collision.shapes.BoxCollisionShape;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
 import com.jme3.font.BitmapText;
@@ -25,6 +26,7 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.texture.Texture;
+import java.lang.reflect.Array;
 
 /** Sample 8 - how to let the user pick (select) objects in the scene
  * using the mouse or key presses. Can be used for shooting, opening doors, etc. */
@@ -39,6 +41,7 @@ public class Main extends SimpleApplication {
   private Node nodeWall;
   private Node nodeTransparentWall;
   private Geometry mark;
+  private Array lista[];
 
   @Override
   public void simpleInitApp() {
@@ -65,9 +68,36 @@ public class Main extends SimpleApplication {
   @Override
     public void simpleUpdate(float tpf) {
       nodeWall.move(0,0,tpf*2);
+      checkColision();
+      if(nodeWall.getWorldTranslation().z > 35){
+          rootNode.detachChild(nodeWall);
+          makeWall();
+      }
 
     }
 
+    private void checkColision(){   
+      Node texturaColisao = new Node();
+      rootNode.attachChild(texturaColisao);
+      CollisionResults colisao = new CollisionResults();
+      
+      for(int x = 0; x < nodeTransparentWall.getQuantity(); x++){
+          if(nodeTransparentWall.getChild(x).getName().contains("_Textura")){
+              System.out.print(nodeTransparentWall.getChild(x).getName() + "\n");
+            }
+      }
+//      for(int i = 0; i < texturaColisao.getQuantity(); i++){
+//          nodeTransparentWall.collideWith(texturaColisao.getChild(i).getWorldBound() , colisao);
+//          
+//      }
+      for(int j = 0; j < colisao.size(); j++){
+          System.out.print(colisao.getCollision(j)+ "\n");
+      }
+    }
+    
+    private void checkColision2(){
+      System.out.print(nodeTransparentWall.getLocalTranslation() + "\n");
+    }
 
   /** Declaring the "Shoot" action and mapping to its triggers. */
   private void initKeys() {
@@ -80,6 +110,7 @@ public class Main extends SimpleApplication {
   private ActionListener actionListener = new ActionListener() {
 
     public void onAction(String name, boolean keyPressed, float tpf) {
+      
       if (name.equals("Shoot") && !keyPressed) {
         // 1. Reset results list.
         CollisionResults results = new CollisionResults();
@@ -90,27 +121,44 @@ public class Main extends SimpleApplication {
         // skybox! Always make a separate node for objects you want to collide with.
         shootables.collideWith(ray, results);
         // 4. Print the results
-        System.out.println("----- Collisions? " + results.size() + "-----");
-        for (int i = 0; i < results.size(); i++) {
+        for (int i = 1; i < results.size(); i++) {
           // For each hit, we know distance, impact point, name of geometry.
           float dist = results.getCollision(i).getDistance();
           Vector3f pt = results.getCollision(i).getContactPoint();
           String hit = results.getCollision(i).getGeometry().getName();
           Spatial cubo = nodeTransparentWall.getChild(results.getCollision(i).getGeometry().getName());
-          System.out.println("* Collision #" + i);
-          System.out.println("  You shot " + hit + " at " + pt + ", " + dist + " wu away.");
+          String cuboNome = cubo.getName();
+          if(!cuboNome.contains("_Textura")){
+            Material cubeMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            Texture cubeText = assetManager.loadTexture("Textures/wallTexture.jpg");
+            cubeMat.setTexture("ColorMap", cubeText);
+            cubo.setMaterial(cubeMat);
+            cubo.setName(cuboNome + "_Textura");
+          }
+          else{
+            Material cubeMat2 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            cubeMat2.setTexture("ColorMap",
+                assetManager.loadTexture("Textures/red.png"));
+            cubeMat2.getAdditionalRenderState().setBlendMode(BlendMode.AlphaAdditive);  // !
+            cubo.setQueueBucket(Bucket.Transparent);   
+            cubo.setMaterial(cubeMat2);
+            
+            String delStr = "_Textura";
+            cubo.setName(cuboNome.replace(delStr, ""));
+          }
         }
-        // 5. Use the results (we mark the hit object)
-        if (results.size() > 0) {
-          // The closest collision point is what was truly hit:
-          CollisionResult closest = results.getClosestCollision();
-          // Let's interact - we mark the hit with a red dot.
-          mark.setLocalTranslation(closest.getContactPoint());
-          rootNode.attachChild(mark);
-        } else {
-          // No hits? Then remove the red mark.
-          rootNode.detachChild(mark);
-        }
+        
+//        // 5. Use the results (we mark the hit object)
+//        if (results.size() > 0) {
+//          // The closest collision point is what was truly hit:
+//          CollisionResult closest = results.getClosestCollision();
+//          // Let's interact - we mark the hit with a red dot.
+//          mark.setLocalTranslation(closest.getContactPoint());
+//          rootNode.attachChild(mark);
+//        } else {
+//          // No hits? Then remove the red mark.
+//          rootNode.detachChild(mark);
+//        }
       }
     }
   };
