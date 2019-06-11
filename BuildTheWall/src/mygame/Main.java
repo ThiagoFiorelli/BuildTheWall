@@ -1,6 +1,7 @@
 package mygame;
 
 import com.jme3.app.SimpleApplication;
+import com.jme3.bullet.collision.shapes.BoxCollisionShape;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
 import com.jme3.font.BitmapText;
@@ -11,16 +12,21 @@ import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import static com.jme3.math.FastMath.nextRandomInt;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector3f;
+import com.jme3.post.FilterPostProcessor;
+import com.jme3.post.filters.CartoonEdgeFilter;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.texture.Texture;
+import java.lang.reflect.Array;
 
 /** Sample 8 - how to let the user pick (select) objects in the scene
  * using the mouse or key presses. Can be used for shooting, opening doors, etc. */
@@ -33,7 +39,9 @@ public class Main extends SimpleApplication {
   
   private Node shootables;
   private Node nodeWall;
+  private Node nodeTransparentWall;
   private Geometry mark;
+  private Array lista[];
 
   @Override
   public void simpleInitApp() {
@@ -41,17 +49,55 @@ public class Main extends SimpleApplication {
     initKeys();       // load custom key mappings
     initMark();       // a red sphere to mark the hit
  
+    FilterPostProcessor fpp = new FilterPostProcessor(assetManager);
+    CartoonEdgeFilter borda = new CartoonEdgeFilter();
+    borda.setEdgeColor(ColorRGBA.Red);
+    fpp.addFilter(borda);
+
+    viewPort.addProcessor(fpp);
 
     /** create four colored boxes and a floor to shoot at: */
     shootables = new Node("Shootables");
     rootNode.attachChild(shootables);
-//    shootables.attachChild(makeCube("a Dragon", -2f, 0f, 1f));
-//    shootables.attachChild(makeCube("a tin can", 1f, -2f, 0f));
-//    shootables.attachChild(makeCube("the Sheriff", 0f, 1f, -2f));
-//    shootables.attachChild(makeCube("the Deputy", 1f, 0f, -4f));
-    shootables.attachChild(makeFloor());
-    shootables.attachChild(makeWall());
+    rootNode.attachChild(makeFloor(0,-3.5f,-10));
+    rootNode.attachChild(makeFloor(0,-3.5f,10));
+    makeWall();
+    shootables.attachChild(makeTransparentWall());
   }
+  
+  @Override
+    public void simpleUpdate(float tpf) {
+      nodeWall.move(0,0,tpf*2);
+      checkColision();
+      if(nodeWall.getWorldTranslation().z > 35){
+          rootNode.detachChild(nodeWall);
+          makeWall();
+      }
+
+    }
+
+    private void checkColision(){   
+      Node texturaColisao = new Node();
+      rootNode.attachChild(texturaColisao);
+      CollisionResults colisao = new CollisionResults();
+      
+      for(int x = 0; x < nodeTransparentWall.getQuantity(); x++){
+          if(nodeTransparentWall.getChild(x).getName().contains("_Textura")){
+              System.out.print(nodeTransparentWall.getChild(x).getName() + "\n");
+            }
+      }
+//      for(int i = 0; i < texturaColisao.getQuantity(); i++){
+//          nodeTransparentWall.collideWith(texturaColisao.getChild(i).getWorldBound() , colisao);
+//          
+//      }
+      for(int j = 0; j < colisao.size(); j++){
+          System.out.print(colisao.getCollision(j)+ "\n");
+      }
+    }
+    
+    private void checkColision2(){
+      System.out.print(nodeTransparentWall.getLocalTranslation() + "\n");
+    }
 
   /** Declaring the "Shoot" action and mapping to its triggers. */
   private void initKeys() {
@@ -64,6 +110,7 @@ public class Main extends SimpleApplication {
   private ActionListener actionListener = new ActionListener() {
 
     public void onAction(String name, boolean keyPressed, float tpf) {
+      
       if (name.equals("Shoot") && !keyPressed) {
         // 1. Reset results list.
         CollisionResults results = new CollisionResults();
@@ -74,48 +121,56 @@ public class Main extends SimpleApplication {
         // skybox! Always make a separate node for objects you want to collide with.
         shootables.collideWith(ray, results);
         // 4. Print the results
-        System.out.println("----- Collisions? " + results.size() + "-----");
-        for (int i = 0; i < results.size(); i++) {
+        for (int i = 1; i < results.size(); i++) {
           // For each hit, we know distance, impact point, name of geometry.
           float dist = results.getCollision(i).getDistance();
           Vector3f pt = results.getCollision(i).getContactPoint();
           String hit = results.getCollision(i).getGeometry().getName();
-          System.out.println("* Collision #" + i);
-          System.out.println("  You shot " + hit + " at " + pt + ", " + dist + " wu away.");
+          Spatial cubo = nodeTransparentWall.getChild(results.getCollision(i).getGeometry().getName());
+          String cuboNome = cubo.getName();
+          if(!cuboNome.contains("_Textura")){
+            Material cubeMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            Texture cubeText = assetManager.loadTexture("Textures/wallTexture.jpg");
+            cubeMat.setTexture("ColorMap", cubeText);
+            cubo.setMaterial(cubeMat);
+            cubo.setName(cuboNome + "_Textura");
+          }
+          else{
+            Material cubeMat2 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            cubeMat2.setTexture("ColorMap",
+                assetManager.loadTexture("Textures/red.png"));
+            cubeMat2.getAdditionalRenderState().setBlendMode(BlendMode.AlphaAdditive);  // !
+            cubo.setQueueBucket(Bucket.Transparent);   
+            cubo.setMaterial(cubeMat2);
+            
+            String delStr = "_Textura";
+            cubo.setName(cuboNome.replace(delStr, ""));
+          }
         }
-        // 5. Use the results (we mark the hit object)
-        if (results.size() > 0) {
-          // The closest collision point is what was truly hit:
-          CollisionResult closest = results.getClosestCollision();
-          // Let's interact - we mark the hit with a red dot.
-          mark.setLocalTranslation(closest.getContactPoint());
-          rootNode.attachChild(mark);
-        } else {
-          // No hits? Then remove the red mark.
-          rootNode.detachChild(mark);
-        }
+        
+//        // 5. Use the results (we mark the hit object)
+//        if (results.size() > 0) {
+//          // The closest collision point is what was truly hit:
+//          CollisionResult closest = results.getClosestCollision();
+//          // Let's interact - we mark the hit with a red dot.
+//          mark.setLocalTranslation(closest.getContactPoint());
+//          rootNode.attachChild(mark);
+//        } else {
+//          // No hits? Then remove the red mark.
+//          rootNode.detachChild(mark);
+//        }
       }
     }
   };
 
-  /** A cube object for target practice */
-//  protected Geometry makeCube(String name, float x, float y, float z) {
-//    Box box = new Box(1, 1, 1);
-//    Geometry cube = new Geometry(name, box);
-//    cube.setLocalTranslation(x, y, z);
-//    Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-//    mat1.setColor("Color", ColorRGBA.randomColor());
-//    cube.setMaterial(mat1);
-//    return cube;
-//  }
-
   /** A floor to show that the "shot" can go through several objects. */
-  protected Geometry makeFloor() {
-    Box box = new Box(15, .2f, 15);
+  protected Geometry makeFloor(float x, float y, float z) {
+    Box box = new Box(4, .2f, 10);
     Geometry floor = new Geometry("the Floor", box);
-    floor.setLocalTranslation(0, -4, -5);
+    floor.setLocalTranslation(x, y, z);
     Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-    mat1.setColor("Color", ColorRGBA.Gray);
+    Texture floorTexture = assetManager.loadTexture("Textures/floor1.jpg"); 
+    mat1.setTexture("ColorMap", floorTexture); 
     floor.setMaterial(mat1);
     return floor;
   }
@@ -141,24 +196,11 @@ public class Main extends SimpleApplication {
       settings.getHeight() / 2 + ch.getLineHeight()/2, 0);
     guiNode.attachChild(ch);
   }
-
-  protected Spatial makeCharacter() {
-    // load a character from jme3test-test-data
-    Spatial golem = assetManager.loadModel("Models/Oto/Oto.mesh.xml");
-    golem.scale(0.5f);
-    golem.setLocalTranslation(-1.0f, -1.5f, -0.6f);
-
-    // We must add a light to make the model visible
-    DirectionalLight sun = new DirectionalLight();
-    sun.setDirection(new Vector3f(-0.1f, -0.7f, -1.0f));
-    golem.addLight(sun);
-    return golem;
-  }
   
    public Geometry makeCube(Node wall,float x, float y, float z){
      /** An unshaded textured cube. 
     *  Uses texture from jme3-test-data library! */ 
-    Box boxMesh = new Box(1f,1f,1f); 
+    Box boxMesh = new Box(0.48f,0.48f,0.48f); 
     Geometry boxGeo = new Geometry("A Textured Box", boxMesh); 
     Material boxMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md"); 
     boxGeo.setLocalTranslation(x, y, z);
@@ -171,23 +213,53 @@ public class Main extends SimpleApplication {
   }
   
   public Node makeWall(){
-      nodeWall = new Node("nodeWall");
+      nodeWall = new Node("nodeTransparentWall");
       int blockSkip = nextRandomInt(0,2);
       int i = 0 ,j = 0;
       for(i = 0; i < 4; i++){
-          for(j = 0; j < 4; j++){
+          for(j = -2; j < 2; j++){
               if(blockSkip != 2){
                 blockSkip = nextRandomInt(0,2);
               }
               else{
-                makeCube(nodeWall,i-1.5f,j, -20);
+                makeCube(nodeWall,i-1.5f,j,-20);
                 blockSkip = nextRandomInt(0,2);
               }
-              System.out.println(blockSkip);
+
            }
         }
       return nodeWall;
   }
   
+  
+  
+  int cont=0;
+  public Geometry makeTransparentCube(Node wall,float x, float y, float z){
+      /** A translucent/transparent texture, similar to a window frame. */
+    Box cube2Mesh = new Box( 0.48f,0.48f,0.48f);
+    Geometry cube2Geo = new Geometry("cube_"+cont++, cube2Mesh);
+    Material cube2Mat = new Material(assetManager,
+    "Common/MatDefs/Misc/Unshaded.j3md");
+    cube2Geo.setLocalTranslation(x, y, z);
+    cube2Mat.setTexture("ColorMap",
+        assetManager.loadTexture("Textures/red.png"));
+    cube2Mat.getAdditionalRenderState().setBlendMode(BlendMode.AlphaAdditive);  // !
+    cube2Geo.setQueueBucket(Bucket.Transparent);   
+    cube2Geo.setMaterial(cube2Mat);
+    wall.attachChild(cube2Geo);
+    rootNode.attachChild(wall);
+    return cube2Geo;
+  }
+  
+  public Node makeTransparentWall(){
+      nodeTransparentWall = new Node("nodeWall");
+      int i = 0 ,j = 0;
+      for(i = 0; i < 4; i++){
+          for(j = -2; j < 2; j++){
+                makeTransparentCube(nodeTransparentWall,i-1.5f,j, 4f);
+           }
+        }
+      return nodeTransparentWall;
+  }
 }
 
